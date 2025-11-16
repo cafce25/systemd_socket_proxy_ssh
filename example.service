@@ -1,0 +1,18 @@
+[Unit]
+Description=Tunnel Postgres DB for remote-host
+After=network-online.target
+After=ssh-agent.service
+Requires=ssh-agent.service
+StartLimitBurst=5
+StartLimitIntervalSec=150
+
+[Service]
+Environment=SSH_AUTH_SOCK=%t/ssh-agent.socket
+Environment=SYSTEMD_UNIT=%N
+ExecStart=%h/.cargo/bin/systemd_socket_proxy_ssh localhost:5432 -- -o "ExitOnForwardFailure yes" -o "ServerAliveInterval 60" remote-host
+Restart=no
+RestartSec=5
+StartLimitInterval=0
+
+[Install]
+WantedBy=default.target

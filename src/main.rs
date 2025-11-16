@@ -48,7 +48,6 @@ async fn main() -> Result<()> {
     let unit = std::env::var("SYSTEMD_UNIT").unwrap_or("unknown_unit".to_string());
 
     let folder = format!("/run/user/1000/systemd/units/{unit}");
-    let _f = HookRm(folder.clone());
     tokio::fs::create_dir_all(&folder)
         .await
         .context("create dir")?;
@@ -58,12 +57,12 @@ async fn main() -> Result<()> {
         .collect::<Vec<_>>();
 
     let mut ssh = Command::new("ssh")
-        .args(["-N"])
-        .arg(&args.host)
+        .args(&args.ssh_options)
         .args(
             std::iter::zip(&sockets, &args.ports)
                 .map(|(socket, port)| format!("-L{socket}:{port}")),
         )
+        .arg("-N")
         .spawn()
         .context("spawning ssh")?;
 
@@ -78,10 +77,6 @@ async fn main() -> Result<()> {
     while let Some(f) = futures.next().await {
         f??;
     }
-
-    // future::try_join_all(futures)
-    //     .await
-    //     .context("joining connection handling futures")?;
 
     ssh.await.context("running ssh")?.unwrap();
 
@@ -166,8 +161,12 @@ unsafe fn get_socket(fd: c_int) -> Result<Listener> {
 
 #[derive(clap::Parser)]
 struct Parameters {
-    host: String,
+    /// The remote ports/sockets that should be forwarded, they will be matched 1:1 with the file
+    /// descriptors that systemd passes this process in the order specified
     ports: Vec<String>,
+    /// Options passed directly to ssh one of them must be the host to connect to
+    #[clap(last = true, num_args = 1..)]
+    ssh_options: Vec<String>,
 }
 
 #[derive(Debug)]

@@ -1,0 +1,7 @@
+[Unit]
+
+[Socket]
+ListenStream=5432
+
+[Install]
+WantedBy=default.target
